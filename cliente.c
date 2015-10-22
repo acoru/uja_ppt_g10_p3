@@ -29,8 +29,9 @@ int main(int *argc, char *argv[])
 	SOCKET sockfd;
 	struct sockaddr_in server_in;
 	char buffer_in[1024], buffer_out[1024],input[1024];
+	char buffer_out2[10] = "";
 	int recibidos=0,enviados=0;
-	int estado=S_HELO;
+	int estado=S_CONNECT;
 	char option;
 
 	WORD wVersionRequested;
@@ -39,6 +40,12 @@ int main(int *argc, char *argv[])
 
     char ipdest[16];
 	char default_ip[16]="127.0.0.1";
+	//variables for the port of the server, 25 as default port
+	char tcp_port[16];
+	char default_tcp_port[16]="25";
+	int s_tcp_port = 0;
+	//variable for the recived code as response from the server for a command
+	int r_code;
 	
 	//Inicialización Windows sockets
 	wVersionRequested=MAKEWORD(1,1);
@@ -71,50 +78,39 @@ int main(int *argc, char *argv[])
 
 			if(strcmp(ipdest,"")==0)
 				strcpy(ipdest,default_ip);
+			
+			//user must insert the TCP port of the SMTP server, 25 as default
+			printf("CLIENTE> Insert the TCP port of the server (intro for default PORT): ");
+			gets(tcp_port);
 
+			if(strcmp(tcp_port, "") == 0)
+			{
+				strcpy(tcp_port, default_tcp_port);
+			}
+			//once the user has inserted the port, it's converted into short
+			sscanf_s(tcp_port, "%d", &s_tcp_port);
 
 			server_in.sin_family=AF_INET;
-			server_in.sin_port=htons(TCP_SERVICE_PORT);
+			server_in.sin_port=htons(s_tcp_port);
 			server_in.sin_addr.s_addr=inet_addr(ipdest);
 			
-			estado=S_HELO;
+			estado=S_CONNECT;
 		
 			// establece la conexion de transporte
 			if(connect(sockfd,(struct sockaddr*)&server_in,sizeof(server_in))==0)
 			{
-				printf("CLIENTE> CONEXION ESTABLECIDA CON %s:%d\r\n",ipdest,TCP_SERVICE_PORT);
+				printf("CLIENTE> CONEXION ESTABLECIDA CON %s:%d\r\n",ipdest,s_tcp_port);
 			
 		
 				//Inicio de la máquina de estados
 				do{
 					switch(estado)
 					{
+					case S_CONNECT:
+						break;
 					case S_HELO:
 						// Se recibe el mensaje de bienvenida
-						break;
-					case S_USER:
-						// establece la conexion de aplicacion 
-						printf("CLIENTE> Introduzca el usuario (enter para salir): ");
-						gets(input);
-						if(strlen(input)==0)
-						{
-							sprintf_s (buffer_out, sizeof(buffer_out), "%s%s",SD,CRLF);
-							estado=S_QUIT;
-						}
-						else
-
-						sprintf_s (buffer_out, sizeof(buffer_out), "%s %s%s",SC,input,CRLF);
-						break;
-					case S_PASS:
-						printf("CLIENTE> Introduzca la clave (enter para salir): ");
-						gets(input);
-						if(strlen(input)==0)
-						{
-							sprintf_s (buffer_out, sizeof(buffer_out), "%s%s",SD,CRLF);
-							estado=S_QUIT;
-						}
-						else
-							sprintf_s (buffer_out, sizeof(buffer_out), "%s %s%s",PW,input,CRLF);
+						sprintf_s(buffer_out, sizeof(buffer_out), "HELO hi\r\n");
 						break;
 					case S_DATA:
 						printf("CLIENTE> Introduzca datos (enter o QUIT para salir): ");
@@ -131,10 +127,22 @@ int main(int *argc, char *argv[])
 				
 					}
 					//Envio
-					if(estado!=S_HELO)
 					// Ejercicio: Comprobar el estado de envio
-						enviados=send(sockfd,buffer_out,(int)strlen(buffer_out),0);
-
+					enviados=send(sockfd,buffer_out,(int)strlen(buffer_out),0);
+					if(enviados <= 0)
+					{
+						DWORD error = GetLastError();
+						if(enviados < 0)
+						{
+							printf("CLIENTE> FAIL SENDING DATA TO THE SERVER: %d%s", error, CRLF);
+							estado=S_QUIT;
+						}
+						else
+						{
+							printf("CLIENTE> END CONEXION WITH THE SERVER%s", CRLF);
+							estado=S_QUIT;
+						}
+					}
 					//Recibo
 					recibidos=recv(sockfd,buffer_in,512,0);
 
@@ -153,12 +161,24 @@ int main(int *argc, char *argv[])
 						
 					
 						}
-					}else
+					}
+					else
 					{
 						buffer_in[recibidos]=0x00;
-						printf(buffer_in);
-						if(estado!=S_DATA && strncmp(buffer_in,OK,2)==0) 
-							estado++;  
+						printf(buffer_in); 
+						//takes the error code (or non error code) from the server response
+						sscanf_s(buffer_in, "%d", &r_code);
+						//if received code is 220, the conecction with the server was successful
+						//then, the state machine changes it's state to HELO
+						if(estado != S_DATA && r_code == 220)
+						{
+							estado++;
+						}
+						//response for the HELO message
+						if(estado != S_DATA && r_code == 250)
+						{
+							estado++;
+						}
 					}
 
 				}while(estado!=S_QUIT);
@@ -168,7 +188,7 @@ int main(int *argc, char *argv[])
 			}
 			else
 			{
-				printf("CLIENTE> ERROR AL CONECTAR CON %s:%d\r\n",ipdest,TCP_SERVICE_PORT);
+				printf("CLIENTE> ERROR AL CONECTAR CON %s:%d\r\n",ipdest,s_tcp_port);
 			}		
 			// fin de la conexion de transporte
 			closesocket(sockfd);
