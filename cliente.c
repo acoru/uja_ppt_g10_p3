@@ -26,13 +26,20 @@ Autor: Juan Carlos Cuevas Martínez
 
 int main(int *argc, char *argv[])
 {
+	//code for taking the date of the system
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
 	SOCKET sockfd;
 	struct sockaddr_in server_in;
 	char buffer_in[1024], buffer_out[1024],input[1024];
 	char buffer_out2[10] = "";
 	int recibidos=0,enviados=0;
 	int estado=S_CONNECT;
-	char option;
+	char option = 's';
+	char d_option[5] = "";	//DATA option, for selecting the option in the DATA state
+	int i_d_option = 0;		//for working with integer values on the DATA state option
+	int error = 0;			//for controlling some possible errors during the insertion of the mail data
+	char date[50] = "";		//for taking the date into a variable for later use
 
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -46,7 +53,7 @@ int main(int *argc, char *argv[])
 	int s_tcp_port = 0;
 	//variable for the recived code as response from the server for a command
 	int r_code;
-	
+	char r_c_code[20] = "";
 	//Inicialización Windows sockets
 	wVersionRequested=MAKEWORD(1,1);
 	err=WSAStartup(wVersionRequested,&wsaData);
@@ -113,18 +120,78 @@ int main(int *argc, char *argv[])
 						sprintf_s(buffer_out, sizeof(buffer_out), "HELO hi\r\n");
 						break;
 					case S_DATA:
-						printf("CLIENTE> Introduzca datos (enter o QUIT para salir): ");
-						gets(input);
-						if(strlen(input)==0)
+						do
 						{
-							sprintf_s (buffer_out, sizeof(buffer_out), "%s%s",SD,CRLF);
-							estado=S_QUIT;
+							printf("CLIENTE> Select an option\r\n");
+							printf("1) Write email\r\n");
+							printf("2) QUIT (close session)\r\n");
+							printf("3) EXIT (from program)\r\n");
+							gets(d_option);
+							sscanf_s(d_option, "%d", &i_d_option);
+							switch (i_d_option)
+							{
+								case 1:
+									/* if the user choose to write an email, it will change the state to S_MAIL_F, but this state 
+									*  is what you can see hear, after the user insert the email, the state will change to S_RCPT_T
+									*/
+									estado++;
+									printf("CLIENT> Insert the email source: ");
+									gets(input);
+									if(strcmp(input, "QUIT") == 0)
+									{
+										sprintf_s(buffer_out, sizeof(buffer_out), "%s%s", SD, CRLF);
+									}
+									else
+									{
+										sprintf_s(buffer_out, sizeof(buffer_out), "MAIL FROM: %s%s", input, CRLF);
+									}
+									break;
+								case 2:
+									sprintf_s (buffer_out, sizeof(buffer_out), "%s%s",SD,CRLF);
+									estado=S_QUIT;
+									break;
+								case 3:
+									sprintf_s (buffer_out, sizeof(buffer_out), "%s%s",SD,CRLF);
+									estado=S_QUIT;
+									option = 'n';
+									break;
+								default:
+									printf("CLIENT> Incorrect option, please, choose one of the following options");
+									break;
+							}
+						}while(i_d_option < 1 || i_d_option > 3);
+						break;
+					case S_RCPT_T:
+						printf("CLIENT> Insert the destination email: ");
+						gets(input);
+						if(strcmp(input, "QUIT") == 0)
+						{
+							sprintf_s(buffer_out, sizeof(buffer_out), "%s%s", SD, CRLF);
 						}
 						else
-							sprintf_s (buffer_out, sizeof(buffer_out), "%s%s",input,CRLF);
+						{
+							sprintf_s(buffer_out, sizeof(buffer_out), "RCPT TO: %s%s", input, CRLF);
+						}
 						break;
-				 
-				
+					case S_MAIL_B:
+						//code for taking the date from the system, it must be taken foreach time a user write an email
+						t = time(NULL);
+						tm = *localtime(&t);
+						printf("now: %d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+						//user must insert a subjet, if user do not insert anything, it'll loop until user insert it
+						printf("subjet:");
+						do
+						{
+							if(error == 1)
+							{
+								printf("Client> subjet required, please, insert a subjet: ");
+							}
+							gets(input);
+							error = 1;
+						}while(strcmp(input, "") == 0);
+						error = 0;
+
+						break;
 					}
 					//Envio
 					// Ejercicio: Comprobar el estado de envio
@@ -165,19 +232,42 @@ int main(int *argc, char *argv[])
 					else
 					{
 						buffer_in[recibidos]=0x00;
-						printf(buffer_in); 
 						//takes the error code (or non error code) from the server response
-						sscanf_s(buffer_in, "%d", &r_code);
-						//if received code is 220, the conecction with the server was successful
-						//then, the state machine changes it's state to HELO
-						if(estado != S_DATA && r_code == 220)
+						sscanf_s(buffer_in, "%d %s", &r_code, r_c_code, sizeof(r_c_code));
+						//provisional solution for the 500 to long error on the first HELO command
+						//the error it's still here, but now it has been silenced
+						if(estado != S_HELO && r_code != 500)
 						{
-							estado++;
+							printf(buffer_in);
 						}
-						//response for the HELO message
-						if(estado != S_DATA && r_code == 250)
+						switch (r_code)
 						{
-							estado++;
+							//response for the initial connection with the server
+							case 220:
+								estado++;
+								break;
+							case 221:
+								//for preventing possible problem if a user insert QUIT and later select to continue
+								if(strcmp(r_c_code, "goodbye") == 0)
+								{
+									estado = S_HELO;
+								}
+								break;
+							case 250:
+								//show the hello response from the server and set the state to S_DATA
+								if(strcmp(r_c_code, "Hello.") == 0)
+								{
+									printf(buffer_in);
+									estado++;
+								}
+								else if(strcmp(r_c_code, "OK") == 0)
+								{
+									//printf("a rcpt to");
+									estado++;
+								}
+								break;
+							default:
+								break;
 						}
 					}
 
@@ -193,10 +283,12 @@ int main(int *argc, char *argv[])
 			// fin de la conexion de transporte
 			closesocket(sockfd);
 			
-		}	
-		printf("-----------------------\r\n\r\nCLIENTE> Volver a conectar (S/N)\r\n");
-		option=_getche();
-
+		}
+		if(option != 'n' && option != 'N')
+		{
+			printf("-----------------------\r\n\r\nCLIENTE> Volver a conectar (S/N)\r\n");
+			option=_getche();
+		}
 	}while(option!='n' && option!='N');
 
 	
