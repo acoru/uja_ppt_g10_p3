@@ -22,6 +22,7 @@
 #define S_DATA 2	//in this state will be added the options for sending an e-mail
 #define S_MAIL_F 3	//new state for inserting the email source
 #define S_RCPT_T 4	//new state for inserting the email destination
-#define S_MAIL_B 5	//the body of the message
-#define S_QUIT 6
-#define S_EXIT 7
+#define S_SEND_D 5	//just for sending the DATA command to the server
+#define S_MAIL_B 6	//the body of the message
+#define S_QUIT 7
+#define S_EXIT 8

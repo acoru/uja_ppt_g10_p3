@@ -40,6 +40,12 @@ int main(int *argc, char *argv[])
 	int i_d_option = 0;		//for working with integer values on the DATA state option
 	int error = 0;			//for controlling some possible errors during the insertion of the mail data
 	char date[50] = "";		//for taking the date into a variable for later use
+	char m_from[50] = "";	//source email
+	char m_to[50] = "";		//destination email
+	char subject[50] = "";	//subject of the message
+	char from[50] = "";		//variable for the from of the mail header
+	char to[50] = "";		//variable for the to of the mail header
+	char message[1000] = "";//the message's body
 
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -137,6 +143,7 @@ int main(int *argc, char *argv[])
 									estado++;
 									printf("CLIENT> Insert the email source: ");
 									gets(input);
+									strcpy(m_from, input);
 									if(strcmp(input, "QUIT") == 0)
 									{
 										sprintf_s(buffer_out, sizeof(buffer_out), "%s%s", SD, CRLF);
@@ -164,6 +171,7 @@ int main(int *argc, char *argv[])
 					case S_RCPT_T:
 						printf("CLIENT> Insert the destination email: ");
 						gets(input);
+						strcpy(m_to, input);
 						if(strcmp(input, "QUIT") == 0)
 						{
 							sprintf_s(buffer_out, sizeof(buffer_out), "%s%s", SD, CRLF);
@@ -173,24 +181,64 @@ int main(int *argc, char *argv[])
 							sprintf_s(buffer_out, sizeof(buffer_out), "RCPT TO: %s%s", input, CRLF);
 						}
 						break;
+					case S_SEND_D:
+						printf("DATA%s", CRLF);
+						sprintf_s(buffer_out, sizeof(buffer_out), "DATA%s", CRLF);
+						break;
 					case S_MAIL_B:
 						//code for taking the date from the system, it must be taken foreach time a user write an email
 						t = time(NULL);
 						tm = *localtime(&t);
-						printf("now: %d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+						sprintf_s(date, sizeof(date), "%d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 						//user must insert a subjet, if user do not insert anything, it'll loop until user insert it
-						printf("subjet:");
+						printf("subjet: ");
 						do
 						{
 							if(error == 1)
 							{
-								printf("Client> subjet required, please, insert a subjet: ");
+								printf("CLIENT> subjet required, please, insert a subjet: ");
 							}
 							gets(input);
 							error = 1;
 						}while(strcmp(input, "") == 0);
 						error = 0;
-
+						strcpy(subject, input);
+						//if user don't insert an alias for the source of the message and the destination, it'll be set
+						//the source and destination email address
+						printf("CLIENT> from (if empty it'll be set the mail inserted on the MAIL FROM before): ");
+						gets(input);
+						if(strcmp(input, "") == 0)
+						{
+							strcpy(from, m_from);
+						}
+						else
+						{
+							strcpy(from, input);
+						}
+						printf("CLIENT> to (if empty it'll be set the mail inserted on the MAIL FROM before): ");
+						gets(input);
+						if(strcmp(input, "") == 0)
+						{
+							strcpy(to, m_to);
+						}
+						else
+						{
+							strcpy(to, input);
+						}
+						printf("CLIENT> Insert the body of the message: %s", CRLF);
+						printf("NOTE: insert CRLF.CRLF for ending the text typing%s", CRLF);
+						/*	this loop sentence will take endless lines until user insert in a new line just the "." char
+						*	the way it works is by getting all the lines the user insert, and concatenating the new inputs
+						*	with the old ones in a vector of char (string message). Just one the user insert in a new line
+						*	a simple char ".", the condition in the while sentence will detect it and will make the loop end
+						*/
+						do
+						{
+							gets(input);
+							strcat(input, CRLF);
+							strcat(message, input);
+						}while(strcmp(input, ".\r\n") != 0);
+						sprintf_s(buffer_out, sizeof(buffer_out), "date:%s\r\nsubject:%s\r\nto:%s\r\nfrom:%s\r\n\r\n%s", date, subject, to, from, message);
 						break;
 					}
 					//Envio
@@ -260,11 +308,29 @@ int main(int *argc, char *argv[])
 									printf(buffer_in);
 									estado++;
 								}
+								//for controlling the MAIL FROM and RCPT TO message
 								else if(strcmp(r_c_code, "OK") == 0)
 								{
-									//printf("a rcpt to");
 									estado++;
 								}
+								//for controlling that the message has been sent correctly to it's destination
+								else if(estado = S_MAIL_B)
+								{
+									printf("CLIENT> Write more email? (Y/N)%s", CRLF);
+									option=_getch();
+									if(option == 'y' || option == 'Y')
+									{
+										estado = S_DATA;
+									}
+									else if(option == 'n' || option == 'N')
+									{
+										estado = S_QUIT;
+									}
+								}
+								break;
+							case 354:
+								//recieve from the server after the DATA message is send
+								estado++;
 								break;
 							default:
 								break;
