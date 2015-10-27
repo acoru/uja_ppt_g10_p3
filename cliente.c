@@ -47,6 +47,12 @@ int main(int *argc, char *argv[])
 	char to[50] = "";		//variable for the to of the mail header
 	char message[1000] = "";//the message's body
 
+	//variables for date
+	int d_day = 0;
+	int d_month = 0;
+	char c_day[4] = "";
+	char c_month[4] = "";
+
 	WORD wVersionRequested;
 	WSADATA wsaData;
 	int err;
@@ -189,7 +195,76 @@ int main(int *argc, char *argv[])
 						//code for taking the date from the system, it must be taken foreach time a user write an email
 						t = time(NULL);
 						tm = *localtime(&t);
-						sprintf_s(date, sizeof(date), "%d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+						//constructing the date format
+						d_day = tm.tm_wday;
+						d_month = tm.tm_mon;
+						//taking the day
+						switch (d_day)
+						{
+							case 0:
+								sprintf_s(c_day, sizeof(c_day), "Sun");
+								break;
+							case 1:
+								sprintf_s(c_day, sizeof(c_day), "Mon");
+								break;
+							case 2:
+								sprintf_s(c_day, sizeof(c_day), "Tue");
+								break;
+							case 3:
+								sprintf_s(c_day, sizeof(c_day), "Wed");
+								break;
+							case 4:
+								sprintf_s(c_day, sizeof(c_day), "Thu");
+								break;
+							case 5:
+								sprintf_s(c_day, sizeof(c_day), "Fri");
+								break;
+							case 6:
+								sprintf_s(c_day, sizeof(c_day), "Sat");
+								break;
+						}
+						//taking the month
+						switch (d_month)
+						{
+							case 0:
+								sprintf_s(c_month, sizeof(c_month), "Jan");
+								break;
+							case 1:
+								sprintf_s(c_month, sizeof(c_month), "Feb");
+								break;
+							case 2:
+								sprintf_s(c_month, sizeof(c_month), "Mar");
+								break;
+							case 3:
+								sprintf_s(c_month, sizeof(c_month), "Apr");
+								break;
+							case 4:
+								sprintf_s(c_month, sizeof(c_month), "May");
+								break;
+							case 5:
+								sprintf_s(c_month, sizeof(c_month), "Jun");
+								break;
+							case 6:
+								sprintf_s(c_month, sizeof(c_month), "Jul");
+								break;
+							case 7:
+								sprintf_s(c_month, sizeof(c_month), "Aug");
+								break;
+							case 8:
+								sprintf_s(c_month, sizeof(c_month), "Sep");
+								break;
+							case 9:
+								sprintf_s(c_month, sizeof(c_month), "Oct");
+								break;
+							case 10:
+								sprintf_s(c_month, sizeof(c_month), "Nov");
+								break;
+							case 11:
+								sprintf_s(c_month, sizeof(c_month), "Dec");
+								break;
+						}
+						//sprintf_s(date, sizeof(date), "%d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+						sprintf_s(date, sizeof(date), "%s, %d %s %d %d:%d:%d +0100", c_day, tm.tm_mday, c_month, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
 						//user must insert a subjet, if user do not insert anything, it'll loop until user insert it
 						printf("subjet: ");
 						do
@@ -320,6 +395,8 @@ int main(int *argc, char *argv[])
 									option=_getch();
 									if(option == 'y' || option == 'Y')
 									{
+										//cleaning the buffer_out
+										sprintf_s(message, sizeof(message), "");
 										estado = S_DATA;
 									}
 									else if(option == 'n' || option == 'N')
@@ -353,6 +430,11 @@ int main(int *argc, char *argv[])
 		if(option != 'n' && option != 'N')
 		{
 			printf("-----------------------\r\n\r\nCLIENTE> Volver a conectar (S/N)\r\n");
+			//if user want to send another mail, the state will be set to the initial state
+			if(option == 's' || option == 'S')
+			{
+				estado=S_CONNECT;
+			}
 			option=_getche();
 		}
 	}while(option!='n' && option!='N');
