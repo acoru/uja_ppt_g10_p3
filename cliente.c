@@ -32,7 +32,6 @@ int main(int *argc, char *argv[])
 	SOCKET sockfd;
 	struct sockaddr_in server_in;
 	char buffer_in[1024], buffer_out[1024],input[1024];
-	char buffer_out2[10] = "";
 	int recibidos=0,enviados=0;
 	int estado=S_CONNECT;
 	char option = 's';
@@ -373,7 +372,7 @@ int main(int *argc, char *argv[])
 								//for preventing possible problem if a user insert QUIT and later select to continue
 								if(strcmp(r_c_code, "goodbye") == 0)
 								{
-									estado = S_HELO;
+									estado = S_QUIT;
 								}
 								break;
 							case 250:
@@ -431,11 +430,12 @@ int main(int *argc, char *argv[])
 		{
 			printf("-----------------------\r\n\r\nCLIENTE> Volver a conectar (S/N)\r\n");
 			//if user want to send another mail, the state will be set to the initial state
+			option=_getche();
 			if(option == 's' || option == 'S')
 			{
 				estado=S_CONNECT;
+				sprintf_s(buffer_out, sizeof(buffer_out), "0x00");	//cleaning the buffer_out for new connections
 			}
-			option=_getche();
 		}
 	}while(option!='n' && option!='N');
 
