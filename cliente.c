@@ -17,6 +17,10 @@ Autor: Juan Carlos Cuevas Martínez
 #include <winsock.h>
 #include <time.h>
 #include <conio.h>
+#include <locale.h>
+#include <stdlib.h>
+#include <string.h>
+#include <windows.h>
 
 #include "protocol.h"
 
@@ -45,6 +49,12 @@ int main(int *argc, char *argv[])
 	char from[50] = "";		//variable for the from of the mail header
 	char to[50] = "";		//variable for the to of the mail header
 	char message[1000] = "";//the message's body
+
+	//for getting the time zone
+	TIME_ZONE_INFORMATION tziOld;
+	DWORD dwRet;
+	int dtimezone;
+	char timezone[5];
 
 	//variables for date
 	int d_day = 0;
@@ -262,8 +272,18 @@ int main(int *argc, char *argv[])
 								sprintf_s(c_month, sizeof(c_month), "Dec");
 								break;
 						}
+						dwRet = GetTimeZoneInformation(&tziOld);	//for getting the time zone
+						dtimezone = dwRet;
+						if(dtimezone < 10)
+						{
+							sprintf_s(timezone, sizeof(timezone), "0%d", dtimezone);
+						}
+						else
+						{
+							sprintf_s(timezone, sizeof(timezone), "%d", dtimezone);
+						}
 						//sprintf_s(date, sizeof(date), "%d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-						sprintf_s(date, sizeof(date), "%s, %d %s %d %d:%d:%d +0100", c_day, tm.tm_mday, c_month, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+						sprintf_s(date, sizeof(date), "%s, %d %s %d %d:%d:%d +%s00", c_day, tm.tm_mday, c_month, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec, timezone);
 						//user must insert a subjet, if user do not insert anything, it'll loop until user insert it
 						printf("subjet: ");
 						do
@@ -317,8 +337,11 @@ int main(int *argc, char *argv[])
 					}
 					//Envio
 					// Ejercicio: Comprobar el estado de envio
-					enviados=send(sockfd,buffer_out,(int)strlen(buffer_out),0);
-					if(enviados <= 0)
+					if(estado != S_CONNECT)
+					{
+						enviados=send(sockfd,buffer_out,(int)strlen(buffer_out),0);
+					}
+					if(enviados <= 0 && estado != S_CONNECT)
 					{
 						DWORD error = GetLastError();
 						if(enviados < 0)
@@ -335,7 +358,7 @@ int main(int *argc, char *argv[])
 					//Recibo
 					recibidos=recv(sockfd,buffer_in,512,0);
 
-					if(recibidos<=0)
+					if(recibidos<=0 && estado != S_CONNECT)
 					{
 						DWORD error=GetLastError();
 						if(recibidos<0)
@@ -356,12 +379,7 @@ int main(int *argc, char *argv[])
 						buffer_in[recibidos]=0x00;
 						//takes the error code (or non error code) from the server response
 						sscanf_s(buffer_in, "%d %s", &r_code, r_c_code, sizeof(r_c_code));
-						//provisional solution for the 500 to long error on the first HELO command
-						//the error it's still here, but now it has been silenced
-						if(estado != S_HELO && r_code != 500)
-						{
-							printf(buffer_in);
-						}
+						printf(buffer_in);
 						switch (r_code)
 						{
 							//response for the initial connection with the server
@@ -379,7 +397,6 @@ int main(int *argc, char *argv[])
 								//show the hello response from the server and set the state to S_DATA
 								if(strcmp(r_c_code, "Hello.") == 0)
 								{
-									printf(buffer_in);
 									estado++;
 								}
 								//for controlling the MAIL FROM and RCPT TO message
