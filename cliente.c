@@ -25,7 +25,19 @@ Autor: Juan Carlos Cuevas Martínez
 #include "protocol.h"
 
 
-
+int getTimeZone()
+{
+	TIME_ZONE_INFORMATION tziOld;
+	DWORD dwRet;
+	dwRet = GetTimeZoneInformation(&tziOld);	if(dwRet == TIME_ZONE_ID_STANDARD || dwRet == TIME_ZONE_ID_UNKNOWN)	{		tziOld.StandardBias/60;
+	}	else if( dwRet == TIME_ZONE_ID_DAYLIGHT )	{		return tziOld.DaylightBias/60;
+	}
+	else
+	{
+		printf("GTZI failed (%d)\n", GetLastError());
+		return 0;
+	}
+}
 
 
 int main(int *argc, char *argv[])
@@ -51,9 +63,7 @@ int main(int *argc, char *argv[])
 	char message[1000] = "";//the message's body
 
 	//for getting the time zone
-	TIME_ZONE_INFORMATION tziOld;
-	DWORD dwRet;
-	int dtimezone;
+	int time_zone = 0;
 	char timezone[5];
 
 	//variables for date
@@ -272,17 +282,17 @@ int main(int *argc, char *argv[])
 								sprintf_s(c_month, sizeof(c_month), "Dec");
 								break;
 						}
-						dwRet = GetTimeZoneInformation(&tziOld);	//for getting the time zone
-						dtimezone = dwRet;
-						if(dtimezone < 10)
+
+						time_zone = getTimeZone();
+						if(time_zone < 10)
 						{
-							sprintf_s(timezone, sizeof(timezone), "0%d", dtimezone);
+							sprintf_s(timezone, sizeof(timezone), "0%d", time_zone);
 						}
 						else
 						{
-							sprintf_s(timezone, sizeof(timezone), "%d", dtimezone);
+							sprintf_s(timezone, sizeof(timezone), "%d", time_zone);
 						}
-						//sprintf_s(date, sizeof(date), "%d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
 						sprintf_s(date, sizeof(date), "%s, %d %s %d %d:%d:%d +%s00", c_day, tm.tm_mday, c_month, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec, timezone);
 						//user must insert a subjet, if user do not insert anything, it'll loop until user insert it
 						printf("subjet: ");
