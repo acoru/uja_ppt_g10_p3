@@ -25,12 +25,22 @@ Autor: Juan Carlos Cuevas Martínez
 #include "protocol.h"
 
 
-int getTimeZone()
-{
+int getTimeZone()
+
+{
+
 	TIME_ZONE_INFORMATION tziOld;
-	DWORD dwRet;
-	dwRet = GetTimeZoneInformation(&tziOld);	if(dwRet == TIME_ZONE_ID_STANDARD || dwRet == TIME_ZONE_ID_UNKNOWN)	{		tziOld.StandardBias/60;
-	}	else if( dwRet == TIME_ZONE_ID_DAYLIGHT )	{		return tziOld.DaylightBias/60;
+	DWORD dwRet;
+
+	dwRet = GetTimeZoneInformation(&tziOld);
+
+	if(dwRet == TIME_ZONE_ID_STANDARD || dwRet == TIME_ZONE_ID_UNKNOWN)
+	{
+		tziOld.StandardBias/60;
+	}
+	else if( dwRet == TIME_ZONE_ID_DAYLIGHT )
+	{
+		return tziOld.DaylightBias/60;
 	}
 	else
 	{
@@ -218,6 +228,11 @@ int main(int *argc, char *argv[])
 						d_day = tm.tm_wday;
 						d_month = tm.tm_mon;
 						//taking the day
+
+						/** NOTA DEL PROFESOR *************************
+						La función strtime aporta toda esta información
+						automáticamente
+						**********************************************/
 						switch (d_day)
 						{
 							case 0:
@@ -342,6 +357,12 @@ int main(int *argc, char *argv[])
 							strcat(input, CRLF);
 							strcat(message, input);
 						}while(strcmp(input, ".\r\n") != 0);
+						/*** NOTA DEL PROFESOR ******************************+
+						No se pueden enviar correos más largos que la longitude de buffer_out
+						por lo que se cumple con uno de los objetivos
+						
+						*/
+
 						sprintf_s(buffer_out, sizeof(buffer_out), "date:%s\r\nsubject:%s\r\nto:%s\r\nfrom:%s\r\n\r\n%s", date, subject, to, from, message);
 						break;
 					}
