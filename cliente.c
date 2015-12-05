@@ -176,7 +176,7 @@ int main(int *argc, char *argv[])
 									*  is what you can see hear, after the user insert the email, the state will change to S_RCPT_T
 									*/
 									estado++;
-									printf("CLIENT> Insert the email source: ");
+									printf("CLIENT> Insert the email source:");
 									gets(input);
 									strcpy(m_from, input);
 									if(strcmp(input, "QUIT") == 0)
@@ -204,7 +204,7 @@ int main(int *argc, char *argv[])
 						}while(i_d_option < 1 || i_d_option > 3);
 						break;
 					case S_RCPT_T:
-						printf("CLIENT> Insert the destination email: ");
+						printf("CLIENT> Insert the destination email:");
 						gets(input);
 						strcpy(m_to, input);
 						if(strcmp(input, "QUIT") == 0)
@@ -213,7 +213,7 @@ int main(int *argc, char *argv[])
 						}
 						else
 						{
-							sprintf_s(buffer_out, sizeof(buffer_out), "RCPT TO: %s%s", input, CRLF);
+							sprintf_s(buffer_out, sizeof(buffer_out), "RCPT TO:%s%s", input, CRLF);
 						}
 						break;
 					case S_SEND_D:
@@ -417,21 +417,19 @@ int main(int *argc, char *argv[])
 							case 220:
 								estado++;
 								break;
+							//server code response to a QUIT message
 							case 221:
-								//for preventing possible problem if a user insert QUIT and later select to continue
-								if(strcmp(r_c_code, "goodbye") == 0)
-								{
 									estado = S_QUIT;
-								}
 								break;
 							case 250:
-								//show the hello response from the server and set the state to S_DATA
-								if(strcmp(r_c_code, "Hello.") == 0)
+								//Controlling the server response for a helo message, if cliente is in HELO state and a 250 code message is received, it means that
+								//the helo message was valid
+								if(estado == S_HELO)
 								{
 									estado++;
 								}
 								//for controlling the MAIL FROM and RCPT TO message
-								else if(strcmp(r_c_code, "OK") == 0)
+								else if(estado == S_MAIL_F || estado == S_RCPT_T)
 								{
 									estado++;
 								}
